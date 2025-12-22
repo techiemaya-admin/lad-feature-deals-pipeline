@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deals Pipeline - Frontend SDK Test</title>
+    <script src="sdk/deals-pipeline-sdk.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            padding: 8px 16px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.loading { background: #d1ecf1; color: #0c5460; }
+        
+        .auth-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .auth-section.authenticated {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .auth-section h2 {
+            margin-top: 0;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-top: 10px;
+        }
+        
+        .pipeline-board {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+        
+        .stage {
+            min-width: 280px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        
+        .stage h3 {
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .lead-card {
+            background: white;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .lead-card h4 {
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .lead-card p {
+            color: #666;
+            font-size: 12px;
+            margin: 2px 0;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-right: 5px;
+            margin-top: 5px;
+        }
+        
+        .badge.status { background: #007bff; color: white; }
+        .badge.priority { background: #ffc107; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Deals Pipeline - Frontend SDK Test</h1>
+        <div id="status" class="status loading">Initializing...</div>
+        
+        <div id="authSection" class="auth-section">
+            <h2>🔐 Authentication</h2>
+            <p id="authMessage">You need to login to access the API</p>
+            <button onclick="login()" id="loginBtn">🔑 Login (Dev Mode)</button>
+            <button onclick="logout()" id="logoutBtn" style="display: none;">🚪 Logout</button>
+            <pre id="authResult" style="margin-top: 10px; display: none;"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>📡 Backend Connection</h2>
+            <p>Base URL: <code id="baseUrl">http://localhost:3004/api/deals-pipeline</code></p>
+            <button onclick="testHealth()">Check Health</button>
+            <pre id="connectionResult">Click a button to test...</pre>
+        </div>
+        
+        <div class="section">
+            <h2>🎨 Pipeline Board</h2>
+            <button onclick="loadPipelineBoard()">Load Pipeline</button>
+            <button onclick="loadStages()">Load Stages Only</button>
+            <button onclick="loadLeads()">Load Leads Only</button>
+            <div id="boardContainer" style="margin-top: 20px;"></div>
+            <pre id="boardResult" style="margin-top: 10px;"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>📚 Reference Data</h2>
+            <button onclick="loadStatuses()">Get Statuses</button>
+            <button onclick="loadSources()">Get Sources</button>
+            <button onclick="loadPriorities()">Get Priorities</button>
+            <pre id="referenceResult">Click a button to load...</pre>
+        </div>
+        
+        <div class="section">
+            <h2>💡 Quick Start for Developers</h2>
+            <p><strong>1. Import the SDK:</strong></p>
+            <pre>import { dealsPipelineAPI } from './frontend/sdk/features/deals-pipeline/api';</pre>
+            
+            <p style="margin-top: 15px;"><strong>2. Use React Hooks:</strong></p>
+            <pre>import { usePipelineBoard } from './frontend/sdk/features/deals-pipeline/hooks';
+
+function MyComponent() {
+  const { data, loading, error } = usePipelineBoard();
+  
+  if (loading) return &lt;div&gt;Loading...&lt;/div&gt;;
+  if (error) return &lt;div&gt;Error: {error.message}&lt;/div&gt;;
+  
+  return &lt;div&gt;{data.stages.length} stages&lt;/div&gt;;
+}</pre>
+            
+            <p style="margin-top: 15px;"><strong>3. Documentation:</strong></p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><a href="FRONTEND_GUIDE.md">FRONTEND_GUIDE.md</a> - Complete guide</li>
+                <li><a href="frontend/sdk/features/deals-pipeline/README.md">SDK README</a> - API documentation</li>
+                <li><a href="ui/pipeline/Board.tsx">Board.tsx</a> - Example component</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Initialize SDK
+        const sdk = new DealsPipelineSDK({
+            baseURL: 'http://localhost:3004/api/deals-pipeline',
+            authURL: 'http://localhost:3004/api/auth'
+        });
+        
+        const statusEl = document.getElementById('status');
+        const authSection = document.getElementById('authSection');
+        const authMessage = document.getElementById('authMessage');
+        const authResult = document.getElementById('authResult');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Check authentication on load
+        window.addEventListener('load', () => {
+            checkAuth();
+            testHealth();
+        });
+        
+        function checkAuth() {
+            const authenticated = !!sdk.token;
+            
+            if (authenticated) {
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ Authenticated & Ready';
+                authSection.className = 'auth-section authenticated';
+                authMessage.textContent = '✓ You are logged in';
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+            } else {
+                statusEl.className = 'status error';
+                statusEl.textContent = '🔒 Not Authenticated - Login Required';
+                authSection.className = 'auth-section';
+                authMessage.textContent = 'You need to login to access the API';
+                loginBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
+            }
+            
+            return authenticated;
+        }
+        
+        async function login() {
+            try {
+                loginBtn.disabled = true;
+                loginBtn.textContent = '🔄 Logging in...';
+                
+                const result = await sdk.devLogin();
+                
+                authResult.style.display = 'block';
+                authResult.textContent = JSON.stringify(result, null, 2);
+                
+                checkAuth();
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Login Failed';
+                authResult.style.display = 'block';
+                authResult.textContent = `Error: ${error.message}\n\nMake sure backend is running: npm run dev`;
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔑 Login (Dev Mode)';
+            }
+        }
+        
+        function logout() {
+            sdk.clearToken();
+            authResult.style.display = 'none';
+            checkAuth();
+        }
+
+        async function testConnection() {
+            statusEl.className = 'status loading';
+            statusEl.textContent = 'Connecting...';
+            
+            try {
+                const response = await fetch(`${BASE_URL}/pipeline/board`);
+                if (response.ok) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '✅ Connected to backend';
+                    document.getElementById('connectionResult').textContent = 'Connection successful!';
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Backend not running';
+                document.getElementById('connectionResult').textContent = 
+                    `Error: ${error.message}\n\nStart the backend with: npm run dev`;
+            }
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:3004/health');
+                const data = await response.json();
+                document.getElementById('connectionResult').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('connectionResult').textContent = 
+                    `Error: ${error.message}\n\nStart backend with: npm run dev`;
+            }
+        }
+
+        async function loadPipelineBoard() {
+            if (!checkAuth()) {
+                alert('Please login first');
+                return;
+            }
+            
+            document.getElementById('boardContainer').innerHTML = '<p>Loading...</p>';
+            document.getElementById('boardResult').textContent = '';
+            
+            try {
+                const board = await sdk.getPipelineBoard();
+                
+                // Display as cards
+                renderBoard(board);
+                
+                // Also show raw JSON
+                document.getElementById('boardResult').textContent = 
+                    JSON.stringify(board, null, 2);
+            } catch (error) {
+                document.getElementById('boardContainer').innerHTML = 
+                    `<p style="color: red;">Error: ${error.message}</p>`;
+                document.getElementById('boardResult').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function renderBoard(board) {
+            const container = document.getElementById('boardContainer');
+            container.innerHTML = '<div class="pipeline-board"></div>';
+            const pipelineDiv = container.querySelector('.pipeline-board');
+            
+            board.stages.forEach(stage => {
+                const stageDiv = document.createElement('div');
+                stageDiv.className = 'stage';
+                
+                const leads = board.leadsByStage[stage.key] || [];
+                
+                stageDiv.innerHTML = `
+                    <h3>${stage.label} (${leads.length})</h3>
+                    ${leads.map(lead => `
+                        <div class="lead-card">
+                            <h4>${lead.name || 'Unnamed Lead'}</h4>
+                            ${lead.company ? `<p>🏢 ${lead.company}</p>` : ''}
+                            ${lead.value ? `<p>💰 $${lead.value.toLocaleString()}</p>` : ''}
+                            <div>
+                                <span class="badge status">${lead.status}</span>
+                                ${lead.priority ? `<span class="badge priority">${lead.priority}</span>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+                
+                pipelineDiv.appendChild(stageDiv);
+            });
+        }
+
+        async function loadStages() {
+            if (!checkAuth()) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const data = await sdk.getStages();
+                document.getElementById('boardResult').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('boardResult').textContent = 
+                    `Error: ${error.message}`;
+            }
+        }
+
+        async function loadLeads() {
+            if (!checkAuth()) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const data = await sdk.getLeads();
+                document.getElementById('boardResult').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('boardResult').textContent = 
+                    `Error: ${error.message}`;
+            }
+        }
+
+        async function loadStatuses() {
+            if (!checkAuth()) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const data = await sdk.getStatuses();
+                document.getElementById('referenceResult').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('referenceResult').textContent = 
+                    `Error: ${error.message}`;
+            }
+        }
+
+        async function loadSources() {
+            if (!checkAuth()) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const data = await sdk.getSources();
+                document.getElementById('referenceResult').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('referenceResult').textContent = 
+                    `Error: ${error.message}`;
+            }
+        }
+
+        async function loadPriorities() {
+            if (!checkAuth()) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const data = await sdk.getPriorities();
+                document.getElementById('referenceResult').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('referenceResult').textContent = 
+                    `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
