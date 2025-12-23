@@ -1,0 +1,108 @@
+name: Sync to LAD Main Repositories
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Checkout LAD-Backend
+        uses: actions/checkout@v3
+        with:
+          repository: techiemaya-admin/LAD-Backend
+          token: ${{ secrets.LAD_REPO_TOKEN }}
+          path: lad-backend
+          ref: develop
+
+      - name: Copy backend files
+        run: |
+          # Remove old files
+          rm -rf lad-backend/features/deals-pipeline/*
+
+          # Ensure directories exist
+          mkdir -p lad-backend/features/deals-pipeline/services
+          mkdir -p lad-backend/features/deals-pipeline/routes
+          mkdir -p lad-backend/features/deals-pipeline/controllers
+          mkdir -p lad-backend/features/deals-pipeline/middleware
+          mkdir -p lad-backend/features/deals-pipeline/models
+
+          # Copy new files
+          [ -d "backend/services" ] && cp backend/services/* lad-backend/features/deals-pipeline/services/ || echo "No services directory"
+          [ -f "backend/routes/index.js" ] && cp backend/routes/index.js lad-backend/features/deals-pipeline/routes/index.js || echo "No routes/index.js"
+          [ -d "backend/controllers" ] && cp backend/controllers/* lad-backend/features/deals-pipeline/controllers/ 2>/dev/null || echo "No controllers directory"
+          [ -d "backend/middleware" ] && cp backend/middleware/* lad-backend/features/deals-pipeline/middleware/ 2>/dev/null || echo "No middleware directory"
+          [ -d "backend/models" ] && cp backend/models/* lad-backend/features/deals-pipeline/models/ 2>/dev/null || echo "No models directory"
+          [ -f "backend/manifest.js" ] && cp backend/manifest.js lad-backend/features/deals-pipeline/ || echo "No manifest.js"
+          [ -f "backend/UPGRADE_NOTES.md" ] && cp backend/UPGRADE_NOTES.md lad-backend/features/deals-pipeline/ || echo "No UPGRADE_NOTES.md"
+          [ -f "backend/README.md" ] && cp backend/README.md lad-backend/features/deals-pipeline/ || echo "No README.md"
+
+      - name: Commit and push to LAD-Backend
+        working-directory: lad-backend
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add features/deals-pipeline/
+          git commit -m "feat(deals-pipeline): auto-sync from feature repo
+
+          Synced from: ${{ github.sha }}
+          Repository: lad-feature-deals-pipeline
+          Timestamp: $(date -u)
+          " || echo "No changes to commit"
+          git push origin develop
+
+  sync-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature repo
+        uses: actions/checkout@v3
+
+      - name: Checkout LAD-Frontend
+        uses: actions/checkout@v3
+        with:
+          repository: techiemaya-admin/LAD-Frontend
+          token: ${{ secrets.LAD_REPO_TOKEN }}
+          path: lad-frontend
+          ref: develop
+
+      - name: Copy frontend SDK files
+        run: |
+          # Remove old SDK
+          rm -rf lad-frontend/sdk/features/deals-pipeline/*
+
+          # Ensure directory exists
+          mkdir -p lad-frontend/sdk/features/deals-pipeline
+
+          # Copy new SDK
+          [ -d "frontend/sdk" ] && cp -r frontend/sdk/* lad-frontend/sdk/features/deals-pipeline/ || echo "No frontend SDK"
+
+          # Copy components if exist
+          if [ -d "frontend/components" ] && [ "$(ls -A frontend/components)" ]; then
+            mkdir -p lad-frontend/web/src/features/deals-pipeline
+            rm -rf lad-frontend/web/src/features/deals-pipeline/*
+            cp -r frontend/components/* lad-frontend/web/src/features/deals-pipeline/
+          fi
+
+      - name: Commit and push to LAD-Frontend
+        working-directory: lad-frontend
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add sdk/features/deals-pipeline/
+          if [ -d "web/src/features/deals-pipeline" ]; then
+            git add web/src/features/deals-pipeline/
+          fi
+          git commit -m "feat(deals-pipeline): auto-sync SDK from feature repo
+
+          Synced from: ${{ github.sha }}
+          Repository: lad-feature-deals-pipeline
+          Timestamp: $(date -u)
+          " || echo "No changes to commit"
+          git push origin develop
