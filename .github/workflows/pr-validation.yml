@@ -28,23 +28,23 @@ jobs:
           else
             echo "No backend package.json found, skipping"
           fi
-          
+
       - name: Check for required files
         run: |
           echo "Checking required files..."
-          test -f backend/manifest.js || (echo "❌ backend/manifest.js is required" && exit 1)
-          test -d backend/services || (echo "❌ backend/services directory is required" && exit 1)
-          test -d backend/routes || (echo "❌ backend/routes directory is required" && exit 1)
+          test -f backend/features/deals-pipeline/manifest.js || (echo "❌ backend/features/deals-pipeline/manifest.js is required" && exit 1)
+          test -d backend/features/deals-pipeline/services || (echo "❌ backend/features/deals-pipeline/services directory is required" && exit 1)
+          test -d backend/features/deals-pipeline/routes || (echo "❌ backend/features/deals-pipeline/routes directory is required" && exit 1)
           echo "✅ All required files present"
 
       - name: Validate backend structure
         run: |
           echo "Validating backend structure..."
           
-          # Check for key backend files
+          # Check for key backend files (LAD architecture)
           files=(
-            "backend/routes/index.js"
-            "backend/manifest.js"
+            "backend/features/deals-pipeline/routes/index.js"
+            "backend/features/deals-pipeline/manifest.js"
           )
           
           for file in "${files[@]}"; do
