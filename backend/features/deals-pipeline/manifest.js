@@ -57,7 +57,8 @@ module.exports = {
   '/bookings',
   '/bookings/counsellor/:counsellorId',
   '/bookings/student/:studentId',
-  '/bookings/range'
+  '/bookings/range',
+  '/bookings/availability',
   ],
   
   // Database schema
