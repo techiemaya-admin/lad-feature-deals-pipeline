@@ -16,13 +16,13 @@ exports.jwtAuth = (req, res, next) => {
   
   req.user = {
     userId: 'mock-user-123',
-    email: 'developer@example.com',
+    email: 'suhas@example.com',
     role: 'admin'
   };
   
   req.tenant = {
-    id: 'mock-tenant-456',
-    name: 'Mock Tenant'
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    name: 'LAD'
   };
   
   next();
@@ -34,7 +34,8 @@ exports.jwtAuth = (req, res, next) => {
 exports.generateMockToken = (payload = {}) => {
   return jwt.sign({
     userId: 'mock-user-123',
-    email: 'developer@example.com',
+    email: 'suhas@example.com',
+    tenant_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     ...payload
   }, MOCK_SECRET, { expiresIn: '24h' });
 };

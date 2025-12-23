@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS lead_stages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL,
   key VARCHAR(50) NOT NULL,
-  label VARCHAR(100) NOT NULL,
+  label VARCHAR(100) NOT NULL, 
   description TEXT,
   color VARCHAR(20),
   display_order INTEGER NOT NULL,
@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS lead_notes (
   FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 );
 
+-- CREATE A TABLE FOR ATTACHMENTS
+CREATE TABLE IF NOT EXISTS lead_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    lead_id UUID NOT NULL,
+    link TEXT NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+);
 -- Indexes for performance (tenant-scoped queries)
 CREATE INDEX IF NOT EXISTS idx_leads_tenant_stage ON leads(tenant_id, stage) WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_leads_tenant_status ON leads(tenant_id, status) WHERE is_deleted = FALSE;

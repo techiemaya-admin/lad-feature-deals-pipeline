@@ -169,8 +169,8 @@
         
         <div id="authSection" class="auth-section">
             <h2>🔐 Authentication</h2>
-            <p id="authMessage">You need to login to access the API</p>
-            <button onclick="login()" id="loginBtn">🔑 Login (Dev Mode)</button>
+            <p id="authMessage">Click below user to login to access the API</p>
+            <button onclick="login()" id="loginBtn">🔑 Login as suhas@example.com</button>
             <button onclick="logout()" id="logoutBtn" style="display: none;">🚪 Logout</button>
             <pre id="authResult" style="margin-top: 10px; display: none;"></pre>
         </div>
@@ -252,7 +252,10 @@ function MyComponent() {
                 statusEl.className = 'status success';
                 statusEl.textContent = '✅ Authenticated & Ready';
                 authSection.className = 'auth-section authenticated';
-                authMessage.textContent = '✓ You are logged in';
+                // Message is refined during login() with actual user email when available
+                if (!authMessage.textContent.includes('Logged in as')) {
+                    authMessage.textContent = '✓ You are logged in';
+                }
                 loginBtn.style.display = 'none';
                 logoutBtn.style.display = 'inline-block';
             } else {
@@ -270,12 +273,15 @@ function MyComponent() {
         async function login() {
             try {
                 loginBtn.disabled = true;
-                loginBtn.textContent = '🔄 Logging in...';
+                loginBtn.textContent = '🔄 Logging in as suhas@example.com...';
                 
                 const result = await sdk.devLogin();
                 
                 authResult.style.display = 'block';
                 authResult.textContent = JSON.stringify(result, null, 2);
+                if (result && result.user && result.user.email) {
+                    authMessage.textContent = `✓ Logged in as ${result.user.email}`;
+                }
                 
                 checkAuth();
             } catch (error) {
@@ -285,7 +291,7 @@ function MyComponent() {
                 authResult.textContent = `Error: ${error.message}\n\nMake sure backend is running: npm run dev`;
             } finally {
                 loginBtn.disabled = false;
-                loginBtn.textContent = '🔑 Login (Dev Mode)';
+                loginBtn.textContent = '🔑 Login as suhas@example.com';
             }
         }
         
