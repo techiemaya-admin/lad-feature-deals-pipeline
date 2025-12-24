@@ -1,42 +1,45 @@
-# Dependencies
+# Node modules
 node_modules/
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
 
 # Environment files
 .env
 .env.local
 .env.*.local
 
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS files
 .DS_Store
-
-# Testing
-coverage/
-*.test.js
-__tests__/
-
-# Build outputs
-dist/
-build/
-*.log
-
-# Database
-*.db
-*.sqlite
-
-# Temp files
-tmp/
-temp/
-*.tmp
-
-# OS
 Thumbs.db
-.DS_Store
+
+# Local sandbox (NEVER commit)
+lad-sandbox/
+lad-sandbox/**
+
+# Local test files
+**/test-pages/
+**/*-test.tsx
+**/*.local.*
+**/*.sandbox.*
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
