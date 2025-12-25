@@ -11,13 +11,12 @@ export { DealsPipelineAPI, dealsPipelineAPI } from './api';
 
 // Export React hooks
 export {
-  usePipeline,
+  usePipelineBoard,
   useLeads,
-  useLeadDetails,
+  useLead,
   useStages,
-  useStatuses,
-  useSources,
-  usePriorities,
+  useLeadMutations,
+  useReferenceData,
   useLeadStats,
 } from './hooks';
 
