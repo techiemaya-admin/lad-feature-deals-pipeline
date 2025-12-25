@@ -1,0 +1,65 @@
+{
+  "name": "lad-feature-deals-pipeline",
+  "version": "2.0.0",
+  "description": "Canonical LAD workspace for deals-pipeline feature",
+  "main": "backend/routes/index.js",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development node backend/server.js",
+    "start": "node backend/server.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "validate": "./scripts/validate.sh",
+    "lint": "eslint backend/**/*.js",
+    "format": "prettier --write \"**/*.{js,ts,json,md}\""
+  },
+  "keywords": [
+    "lad",
+    "deals-pipeline",
+    "crm",
+    "sales"
+  ],
+  "author": "LAD Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.6",
+    "@types/pg": "^8.10.9",
+    "@types/supertest": "^6.0.2",
+    "cross-env": "^10.1.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "prettier": "^3.1.1",
+    "supertest": "^6.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "backend/**/*.js",
+      "!backend/**/*.test.js",
+      "!backend/**/node_modules/**"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.js",
+      "**/*.test.js"
+    ]
+  }
+}
