@@ -40,3 +40,6 @@ temp/
 # OS
 Thumbs.db
 .DS_Store
+
+# Ignore local auth middleware changes
+backend/features/deals-pipeline/middleware/auth.js

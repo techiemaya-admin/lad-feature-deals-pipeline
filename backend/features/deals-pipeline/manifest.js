@@ -53,12 +53,16 @@ module.exports = {
     '/leads/:id/notes',
     '/leads/:id/notes/:noteId',
 
-      // Bookings
-  '/bookings',
-  '/bookings/counsellor/:counsellorId',
-  '/bookings/student/:studentId',
-  '/bookings/range',
-  '/bookings/availability',
+    // Bookings
+    '/bookings',
+    '/bookings/counsellor/:counsellorId',
+    '/bookings/student/:studentId',
+    '/bookings/range',
+    '/bookings/availability',
+
+    // Students
+    '/students',
+    '/students/:id',
   ],
   
   // Database schema
@@ -98,6 +102,7 @@ module.exports = {
       'routes/reference.routes.js',
       'routes/attachments.routes.js',
       'routes/booking.routes.js',
+      'routes/student.routes.js',
       'routes/index.js'
     ],
     controllers: [
@@ -106,7 +111,8 @@ module.exports = {
       'controllers/pipeline.controller.js',
       'controllers/reference.controller.js',
       'controllers/attachment.controller.js',
-      'controllers/booking.controller.js'
+      'controllers/booking.controller.js',
+      'controllers/student.controller.js'
     ],
     services: [
       'services/lead.service.js',
@@ -114,13 +120,15 @@ module.exports = {
       'services/pipeline.service.js',
       'services/reference.service.js',
       'services/attachment.service.js',
-      'services/booking.service.js'
+      'services/booking.service.js',
+      'services/students.service.js'
     ],
     models: [
       'models/lead.pg.js',
       'models/leadStage.pg.js',
       'models/leadStatus.pg.js',
-      'models/booking.pg.js'
+      'models/booking.pg.js',
+      'models/student.pg.js'
     ]
   },
   
