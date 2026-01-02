@@ -1,33 +1,45 @@
 /**
  * Development Server for Deals Pipeline Feature
  * Standalone server for isolated development and testing
+ * LAD Architecture Compliant
  */
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-console.log("ENV:", process.env.NODE_ENV);
+const logger = require('./shared/utils/logger');
+const { DEFAULT_SCHEMA } = require('./shared/utils/schemaHelper');
 
-// Mock auth if not already loaded
-if (!global.jwtAuthMock) {
-  const authMock = require('../mocks/auth.mock');
-  global.jwtAuthMock = authMock.jwtAuth;
-}
+// Initialize database connection
+const db = require('./shared/database/connection');
+
+// Mock auth middleware with tenant context
+const jwtAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  
+  // In dev mode, accept any token and provide full tenant context
+  const token = authHeader.substring(7);
+  req.user = {
+    id: '00000000-0000-0000-0000-000000000001', // Mock user UUID
+    email: 'dev@example.com',
+    tenant_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', // Mock tenant UUID
+    schema: DEFAULT_SCHEMA // LAD: Dynamic schema resolution
+  };
+  
+  next();
+};
 
 const app = express();
 const PORT = process.env.PORT || 3004;
 
-// Middleware - CORS configuration for development (allow all localhost)
+// Middleware - CORS configuration for development (allow all origins)
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow any localhost origin in development
-    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins in development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -35,98 +47,82 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request logging
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  logger.debug(`${req.method} ${req.path}`, { 
+    method: req.method, 
+    path: req.path,
+    tenant_id: req.user?.tenant_id 
+  });
   next();
 });
 
 // Development login endpoint (no auth required)
-const authMock = require('../mocks/auth.mock');
 app.post('/api/auth/dev-login', (req, res) => {
-  const token = authMock.generateMockToken();
+  const token = 'dev-token-' + Date.now();
   res.json({
-    success: true,
     token,
     user: {
-      userId: 'mock-user-123',
-      email: 'suhas@example.com',
-      role: 'admin',
-      tenant_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
-    },
-    tenant: {
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      name: 'LAD'
-    },
-    message: 'Development login successful'
+      id: 'dev-user-001',
+      email: 'dev@example.com',
+      name: 'Dev User'
+    }
   });
 });
 
-// Apply mock auth middleware for all other API routes
-app.use('/api', authMock.jwtAuth);
-
-// Health check
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    service: 'deals-pipeline',
-    version: '2.0.0',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Mount deals-pipeline routes
-const dealsPipelineRouter = require('./features/deals-pipeline/routes');
-app.use('/api/deals-pipeline', dealsPipelineRouter);
+// Load deals-pipeline feature routes
+try {
+  const dealsRoutes = require('./features/deals-pipeline/routes');
+  app.use('/api/deals-pipeline', jwtAuth, dealsRoutes);
+  logger.info('Deals Pipeline routes loaded successfully');
+} catch (error) {
+  logger.error('Error loading Deals Pipeline routes', error);
+}
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Not Found',
-    path: req.path,
-    message: 'The requested endpoint does not exist'
-  });
+  res.status(404).json({ error: 'Not Found', path: req.path });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('[Server Error]', err);
+  logger.error('Unhandled error', err, { path: req.path, method: req.method });
   res.status(500).json({ 
     error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'An error occurred'
+    message: err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log('');
-  console.log('🚀 Deals Pipeline Development Server');
-  console.log('=====================================');
-  console.log(`📡 Server running at: http://localhost:${PORT}`);
-  console.log(`📋 API Base Path: http://localhost:${PORT}/api/deals-pipeline`);
-  console.log(`💚 Health Check: http://localhost:${PORT}/health`);
-  console.log('');
-  console.log('Available Endpoints:');
-  console.log('  - GET  /api/deals-pipeline/leads');
-  console.log('  - GET  /api/deals-pipeline/stages');
-  console.log('  - GET  /api/deals-pipeline/pipeline/board');
-  console.log('  - GET  /api/deals-pipeline/reference/statuses');
-  console.log('');
-  console.log('Press Ctrl+C to stop');
-  console.log('');
+  logger.info('\n🚀 ============================================');
+  logger.info(`   Deals Pipeline Dev Server`);
+  logger.info('   ============================================');
+  logger.info(`   📍 URL: http://localhost:${PORT}`);
+  logger.info(`   🔗 API: http://localhost:${PORT}/api/deals-pipeline`);
+  logger.info(`   🏥 Health: http://localhost:${PORT}/health`);
+  logger.info(`   🔐 Login: POST http://localhost:${PORT}/api/auth/dev-login`);
+  logger.info('   ============================================\n');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 Received SIGTERM. Shutting down gracefully...');
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully...');
+  await db.close();
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
-  console.log('\n🛑 Received SIGINT. Shutting down gracefully...');
+process.on('SIGINT', async () => {
+  logger.info('\nSIGINT received, shutting down gracefully...');
+  await db.close();
   process.exit(0);
 });
-
-module.exports = app;
