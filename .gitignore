@@ -43,3 +43,17 @@ Thumbs.db
 
 # Ignore local auth middleware changes
 backend/features/deals-pipeline/middleware/auth.js
+
+# Deprecated - validation moved to validators/ folder
+backend/features/deals-pipeline/middleware/validators.js
+
+# Development server and test files
+backend/server.js
+backend/shared/
+
+# File uploads (attachments should not be committed)
+backend/uploads/
+
+# Frontend test pages
+frontend/index.html
+frontend/test-*.html

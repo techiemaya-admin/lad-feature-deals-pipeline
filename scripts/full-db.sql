@@ -510,6 +510,8 @@ CREATE TABLE IF NOT EXISTS lead_notes (
   lead_id UUID NOT NULL,
   content TEXT NOT NULL,
   created_by UUID NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}',
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   -- LAD: Foreign key with cascade
@@ -533,6 +535,7 @@ CREATE TABLE IF NOT EXISTS lad_dev.lead_attachments (
     file_name VARCHAR(255),
     file_type VARCHAR(100),          -- pdf, image/png, docx, etc.
     file_size BIGINT,                -- bytes
+    metadata JSONB NOT NULL DEFAULT '{}',
  
     -- Source & ownership
     uploaded_by UUID,                -- user_id or system
@@ -549,6 +552,7 @@ CREATE TABLE IF NOT EXISTS lad_dev.lead_attachments (
 CREATE INDEX idx_lead_attachments_tenant ON lad_dev.lead_attachments(tenant_id);
 CREATE INDEX idx_lead_attachments_lead ON lad_dev.lead_attachments(lead_id);
 CREATE INDEX idx_lead_attachments_created ON lad_dev.lead_attachments(created_at);
+CREATE INDEX idx_lead_notes_is_deleted ON lead_notes(is_deleted);
 -- Indexes for performance (tenant-scoped queries)
 CREATE INDEX IF NOT EXISTS idx_leads_tenant_stage ON leads(tenant_id, stage) WHERE is_deleted = FALSE;
 CREATE INDEX IF NOT EXISTS idx_leads_tenant_status ON leads(tenant_id, status) WHERE is_deleted = FALSE;
