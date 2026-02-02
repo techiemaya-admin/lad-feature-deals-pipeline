@@ -7,9 +7,14 @@
 const leadService = require('../services/lead.service');
 
 // Try core paths first, fallback to local shared
-// Use core utils in LAD architecture
-const { getTenantContext } = require('../../../core/utils/schemaHelper');
-const logger = require('../../../core/utils/logger');
+let getTenantContext, logger;
+try {
+  ({ getTenantContext } = require('../../../../core/utils/schemaHelper'));
+  logger = require('../../../../core/utils/logger');
+} catch (e) {
+  ({ getTenantContext } = require('../../../shared/utils/schemaHelper'));
+  logger = require('../../../shared/utils/logger');
+}
 
 /**
  * List all leads
@@ -65,33 +70,13 @@ exports.create = async (req, res) => {
     const lead = await leadService.create(req.body, tenant_id, schema);
     res.status(201).json(lead);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorDetails = error instanceof Error ? {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      sqlState: error.sqlState
-    } : error;
-    
-    logger.error('Error creating lead', { 
-      error: errorMessage,
-      details: errorDetails,
-      body: req.body 
-    });
+    logger.error('Error creating lead', error, { body: req.body });
     
     if (error.code === 'TENANT_CONTEXT_MISSING') {
       return res.status(403).json({ error: error.message });
     }
     
-    // Return database constraint errors with more detail
-    if (error.code === '23502' || error.code === '23503') {
-      return res.status(400).json({ 
-        error: 'Invalid lead data', 
-        details: error.message 
-      });
-    }
-    
-    res.status(500).json({ error: 'Failed to create lead', details: errorMessage });
+    res.status(500).json({ error: 'Failed to create lead', details: error.message });
   }
 };
 
@@ -128,24 +113,13 @@ exports.remove = async (req, res) => {
     await leadService.remove(req.params.id, tenant_id, schema);
     res.status(204).send();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorDetails = error instanceof Error ? {
-      message: error.message,
-      code: error.code,
-      detail: error.detail
-    } : error;
-    
-    logger.error('Error deleting lead', { 
-      error: errorMessage,
-      details: errorDetails,
-      leadId: req.params.id
-    });
+    logger.error('Error deleting lead', error, { leadId: req.params.id });
     
     if (error.code === 'TENANT_CONTEXT_MISSING') {
       return res.status(403).json({ error: error.message });
     }
     
-    res.status(500).json({ error: 'Failed to delete lead', details: errorMessage });
+    res.status(500).json({ error: 'Failed to delete lead', details: error.message });
   }
 };
 

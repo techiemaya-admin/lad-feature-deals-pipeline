@@ -7,8 +7,12 @@
 const Lead = require('../repositories/lead.pg');
 
 // Try core paths first, fallback to local shared
-// Use core utils in LAD architecture
-const { getTenantContext } = require('../../../core/utils/schemaHelper');
+let getTenantContext;
+try {
+  ({ getTenantContext } = require('../../../../core/utils/schemaHelper'));
+} catch (e) {
+  ({ getTenantContext } = require('../../../shared/utils/schemaHelper'));
+}
 
 /**
  * List all leads with optional filtering

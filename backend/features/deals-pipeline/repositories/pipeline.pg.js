@@ -2,9 +2,14 @@
 const { query: poolQuery } = require('../../../shared/database/connection');
 
 // Try core paths first, fallback to local shared
-// Use core utils in LAD architecture
-const { DEFAULT_SCHEMA } = require('../../../core/utils/schemaHelper');
-const logger = require('../../../core/utils/logger');
+let DEFAULT_SCHEMA, logger;
+try {
+  ({ DEFAULT_SCHEMA } = require('../../../../core/utils/schemaHelper'));
+  logger = require('../../../../core/utils/logger');
+} catch (e) {
+  ({ DEFAULT_SCHEMA } = require('../../../shared/utils/schemaHelper'));
+  logger = require('../../../shared/utils/logger');
+}
 
 const Lead = require('./lead.pg.js');
 

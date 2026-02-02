@@ -7,9 +7,14 @@
 const stageService = require('../services/stage.service');
 
 // Try core paths first, fallback to local shared
-// Use core utils in LAD architecture
-const { getTenantContext } = require('../../../core/utils/schemaHelper');
-const logger = require('../../../core/utils/logger');
+let getTenantContext, logger;
+try {
+  ({ getTenantContext } = require('../../../../core/utils/schemaHelper'));
+  logger = require('../../../../core/utils/logger');
+} catch (e) {
+  ({ getTenantContext } = require('../../../shared/utils/schemaHelper'));
+  logger = require('../../../shared/utils/logger');
+}
 
 /**
  * List all stages

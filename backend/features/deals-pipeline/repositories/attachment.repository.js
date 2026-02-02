@@ -5,9 +5,15 @@
 
 const db = require('../../../shared/database/connection');
 
-// Use core utils in LAD architecture
-const { DEFAULT_SCHEMA } = require('../../../core/utils/schemaHelper');
-const logger = require('../../../core/utils/logger');
+// Try core paths first, fallback to local shared
+let DEFAULT_SCHEMA, logger;
+try {
+  ({ DEFAULT_SCHEMA } = require('../../../../core/utils/schemaHelper'));
+  logger = require('../../../../core/utils/logger');
+} catch (e) {
+  ({ DEFAULT_SCHEMA } = require('../../../shared/utils/schemaHelper'));
+  logger = require('../../../shared/utils/logger');
+}
 
 /**
  * Get all notes for a lead
@@ -46,24 +52,6 @@ exports.deleteNote = async (noteId, leadId, tenant_id, schema = DEFAULT_SCHEMA) 
     WHERE id = $1 AND lead_id = $2 AND tenant_id = $3
   `;
   await db.query(query, [noteId, leadId, tenant_id]);
-};
-
-/**
- * Update a note
- */
-exports.updateNote = async (noteId, leadId, noteData, tenant_id, schema = DEFAULT_SCHEMA) => {
-  const { content } = noteData;
-  const query = `
-    UPDATE ${schema}.lead_notes
-    SET content = $1, updated_at = NOW()
-    WHERE id = $2 AND lead_id = $3 AND tenant_id = $4 AND is_deleted = FALSE
-    RETURNING *
-  `;
-  const result = await db.query(query, [content, noteId, leadId, tenant_id]);
-  if (result.rows.length === 0) {
-    throw new Error('Note not found or already deleted');
-  }
-  return result.rows[0];
 };
 
 /**

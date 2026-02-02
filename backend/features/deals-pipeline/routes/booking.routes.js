@@ -7,12 +7,6 @@ const bookingController = require('../controllers/booking.controller');
 // POST /api/deals-pipeline/bookings
 router.post('/', validateBookingCreate, bookingController.create);
 
-// GET /api/deals-pipeline/bookings?leadId=...&date=...
-router.get('/', bookingController.list);
-
-// GET availability slots (must come before /:id route)
-router.get('/availability', bookingController.getAvailability);
-
 // GET /api/deals-pipeline/bookings/counsellor/:counsellorId
 router.get('/counsellor/:counsellorId', validateUUIDParam('counsellorId'), bookingController.listByCounsellor);
 
@@ -22,7 +16,10 @@ router.get('/student/:studentId', validateUUIDParam('studentId'), bookingControl
 // GET /api/deals-pipeline/bookings/range?dayStart=...&dayEnd=...
 router.get('/range', bookingController.listInRange);
 
-// GET /api/deals-pipeline/bookings/:id (must come after specific routes)
-router.get('/:id', validateUUIDParam('id'), bookingController.getById);
+// GET availability slots
+router.get(
+  '/availability',
+  bookingController.getAvailability
+);
 
 module.exports = router;
