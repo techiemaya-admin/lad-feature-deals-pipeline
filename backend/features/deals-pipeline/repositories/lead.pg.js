@@ -1,16 +1,11 @@
 // Lead Repository for deals-pipeline - LAD Architecture Compliant
 const { query } = require('../../../shared/database/connection');
 const leadDTO = require('../dtos/lead.dto');
+const { PRIORITY_TO_INT } = require('../constants/priority');
 
-// Try core paths first, fallback to local shared
-let DEFAULT_SCHEMA, logger;
-try {
-  ({ DEFAULT_SCHEMA } = require('../../../../core/utils/schemaHelper'));
-  logger = require('../../../../core/utils/logger');
-} catch (e) {
-  ({ DEFAULT_SCHEMA } = require('../../../shared/utils/schemaHelper'));
-  logger = require('../../../shared/utils/logger');
-}
+// Use core utils in LAD architecture
+const { DEFAULT_SCHEMA } = require('../../../core/utils/schemaHelper');
+const logger = require('../../../core/utils/logger');
 
 // Use DTO functions for field mapping
 const mapFieldsToDB = leadDTO.toDatabase;
@@ -140,7 +135,7 @@ async function createLead(leadData, tenant_id, schema = DEFAULT_SCHEMA) {
     leadData.status || 'active',
     leadData.source || null,
     PRIORITY_TO_INT[leadData.priority] || 2, // Convert to integer, default to medium (2)
-    leadData.value || null
+    leadData.amount || leadData.value || null // Accept both amount and value
   ];
   const result = await query(sql, params);
   return mapFieldsFromDB(result.rows[0]);

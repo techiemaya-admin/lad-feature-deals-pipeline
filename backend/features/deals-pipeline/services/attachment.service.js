@@ -7,12 +7,8 @@
 const attachmentRepository = require('../repositories/attachment.repository');
 
 // Try core paths first, fallback to local shared
-let logger;
-try {
-  logger = require('../../../../core/utils/logger');
-} catch (e) {
-  logger = require('../../../shared/utils/logger');
-}
+// Use core utils in LAD architecture
+const logger = require('../../../core/utils/logger');
 
 const DEFAULT_SCHEMA = process.env.DB_SCHEMA || 'lad_dev';
 
@@ -44,6 +40,16 @@ exports.deleteNote = async (leadId, noteId, tenant_id, schema = DEFAULT_SCHEMA) 
     throw new Error('tenant_id is required for deleteNote');
   }
   await attachmentRepository.deleteNote(noteId, leadId, tenant_id, schema);
+};
+
+/**
+ * Update a note
+ */
+exports.updateNote = async (leadId, noteId, noteData, tenant_id, schema = DEFAULT_SCHEMA) => {
+  if (!tenant_id) {
+    throw new Error('tenant_id is required for updateNote');
+  }
+  return await attachmentRepository.updateNote(noteId, leadId, noteData, tenant_id, schema);
 };
 
 /**
