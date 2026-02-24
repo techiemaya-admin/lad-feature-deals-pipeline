@@ -7,8 +7,8 @@ try {
   ({ DEFAULT_SCHEMA } = require('../../../../core/utils/schemaHelper'));
   logger = require('../../../../core/utils/logger');
 } catch (e) {
-  ({ DEFAULT_SCHEMA } = require('../../../shared/utils/schemaHelper'));
-  logger = require('../../../shared/utils/logger');
+  ({ DEFAULT_SCHEMA } = require('../../../core/utils/schemaHelper'));
+  logger = require('../../../core/utils/logger');
 }
 
 async function getAllLeadStages(tenantId, schema = DEFAULT_SCHEMA) {

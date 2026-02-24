@@ -11,7 +11,7 @@ let logger;
 try {
   logger = require('../../../../core/utils/logger');
 } catch (e) {
-  logger = require('../../../shared/utils/logger');
+  logger = require('../../../core/utils/logger');
 }
 
 const DEFAULT_SCHEMA = process.env.DB_SCHEMA || 'lad_dev';

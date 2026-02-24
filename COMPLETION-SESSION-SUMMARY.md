@@ -43,8 +43,8 @@
 
 ### Controller Pattern:
 ```javascript
-const { getTenantContext } = require('../../../shared/utils/schemaHelper');
-const logger = require('../../../shared/utils/logger');
+const { getTenantContext } = require('../../../core/utils/schemaHelper');
+const logger = require('../../../core/utils/logger');
 
 exports.methodName = async (req, res) => {
   try {
@@ -64,7 +64,7 @@ exports.methodName = async (req, res) => {
 
 ### Service Pattern:
 ```javascript
-const logger = require('../../../shared/utils/logger');
+const logger = require('../../../core/utils/logger');
 
 exports.methodName = async (tenant_id, schema, ...params) => {
   if (!tenant_id) {
