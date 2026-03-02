@@ -7,14 +7,9 @@
 const attachmentService = require('../services/attachment.service');
 
 // Try core paths first, fallback to local shared
-let getTenantContext, logger;
-try {
-  ({ getTenantContext } = require('../../../../core/utils/schemaHelper'));
-  logger = require('../../../../core/utils/logger');
-} catch (e) {
-  ({ getTenantContext } = require('../../../shared/utils/schemaHelper'));
-  logger = require('../../../shared/utils/logger');
-}
+// Use core utils in LAD architecture
+const { getTenantContext } = require('../../../core/utils/schemaHelper');
+const logger = require('../../../core/utils/logger');
 
 const gcpStorage = require('../utils/gcp-storage');
 const path = require('path');
@@ -46,9 +41,15 @@ exports.createNote = async (req, res) => {
   try {
     const { tenant_id, schema } = getTenantContext(req);
     
+    // Support both req.user.id and req.user.userId formats
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found in authentication context' });
+    }
+    
     const noteData = {
       content: req.body.content,
-      created_by: req.user.id
+      created_by: userId
     };
     
     const note = await attachmentService.createNote(req.params.id, noteData, tenant_id, schema);
@@ -78,6 +79,32 @@ exports.deleteNote = async (req, res) => {
       return res.status(403).json({ error: error.message });
     }
     res.status(500).json({ error: 'Failed to delete note', details: error.message });
+  }
+};
+
+/**
+ * Update a note
+ * PUT /api/deals-pipeline/leads/:id/notes/:noteId
+ */
+exports.updateNote = async (req, res) => {
+  try {
+    const { tenant_id, schema } = getTenantContext(req);
+    
+    const noteData = {
+      content: req.body.content
+    };
+    
+    const note = await attachmentService.updateNote(req.params.id, req.params.noteId, noteData, tenant_id, schema);
+    res.json(note);
+  } catch (error) {
+    logger.error('Error updating note', error, { leadId: req.params.id, noteId: req.params.noteId });
+    if (error.code === 'TENANT_CONTEXT_MISSING') {
+      return res.status(403).json({ error: error.message });
+    }
+    if (error.message === 'Note not found or already deleted') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to update note', details: error.message });
   }
 };
 
@@ -133,6 +160,12 @@ exports.uploadAttachment = async (req, res) => {
     const leadId = req.params.id;
     const file = req.file;
 
+    // Support both req.user.id and req.user.userId formats
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found in authentication context' });
+    }
+
     // Generate unique filename for GCS
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname || '');
@@ -146,7 +179,7 @@ exports.uploadAttachment = async (req, res) => {
       {
         leadId,
         tenantId: tenant_id,
-        uploadedBy: req.user.id,
+        uploadedBy: userId,
         originalName: file.originalname
       }
     );
@@ -160,7 +193,7 @@ exports.uploadAttachment = async (req, res) => {
       file_name: file.originalname,
       file_type: file.mimetype,
       file_size: file.size,
-      uploaded_by: req.user.id
+      uploaded_by: userId
     });
 
     // Generate signed URL for immediate access

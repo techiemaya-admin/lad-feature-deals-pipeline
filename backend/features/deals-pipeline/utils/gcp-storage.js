@@ -8,13 +8,8 @@ const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 const fs = require('fs');
 
-// Try core paths first, fallback to local shared
-let logger;
-try {
-  logger = require('../../../../core/utils/logger');
-} catch (e) {
-  logger = require('../../../shared/utils/logger');
-}
+// Use core utils in LAD architecture
+const logger = require('../../../core/utils/logger');
 
 // Check if GCP is configured
 const USE_GCP = process.env.GCP_BUCKET_NAME && process.env.GCP_PROJECT_ID;
@@ -112,10 +107,11 @@ exports.getSignedUrl = async (filename, expiresInMinutes = 60) => {
 
       return url;
     } else {
-      // For local files, return the direct URL
+      // For local files, return the direct URL using BACKEND_URL env var
       // Extract filename if it's a local path
       const localFilename = filename.startsWith('/uploads/') ? filename.split('/uploads/attachments/')[1] : filename;
-      return `http://localhost:${process.env.PORT || 3004}/uploads/attachments/${localFilename}`;
+      const backendUrl = process.env.BACKEND_URL || process.env.BASE_URL || `http://localhost:${process.env.PORT || 3004}`;
+      return `${backendUrl}/uploads/attachments/${localFilename}`;
     }
   } catch (error) {
     logger.error('Error generating signed URL', error, { filename });
