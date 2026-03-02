@@ -13,7 +13,7 @@ let logger;
 try {
   logger = require('../../../../core/utils/logger');
 } catch (e) {
-  logger = require('../../../core/utils/logger');
+  logger = require('../../../shared/utils/logger');
 }
 
 // Check if GCP is configured

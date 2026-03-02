@@ -11,7 +11,7 @@ let getTenantContext;
 try {
   ({ getTenantContext } = require('../../../../core/utils/schemaHelper'));
 } catch (e) {
-  ({ getTenantContext } = require('../../../core/utils/schemaHelper'));
+  ({ getTenantContext } = require('../../../shared/utils/schemaHelper'));
 }
 
 /**

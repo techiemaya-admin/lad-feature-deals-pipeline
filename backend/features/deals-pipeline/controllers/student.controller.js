@@ -13,8 +13,8 @@ try {
   ({ getTenantContext } = require('../../../../core/utils/schemaHelper'));
   logger = require('../../../../core/utils/logger');
 } catch (e) {
-  ({ getTenantContext } = require('../../../core/utils/schemaHelper'));
-  logger = require('../../../core/utils/logger');
+  ({ getTenantContext } = require('../../../shared/utils/schemaHelper'));
+  logger = require('../../../shared/utils/logger');
 }
 
 /**
