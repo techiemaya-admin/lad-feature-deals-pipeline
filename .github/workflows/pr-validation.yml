@@ -152,7 +152,7 @@ jobs:
       - name: Generate PR summary
         if: always()
         run: |
-          echo "## 📊 PR Validation Summary - Campaigns Feature" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 PR Validation Summary - Deals Pipeline Feature" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Files Changed" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
