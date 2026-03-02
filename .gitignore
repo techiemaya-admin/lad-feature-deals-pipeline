@@ -5,6 +5,9 @@ yarn-error.log
 package-lock.json
 yarn.lock
 
+# Allow backend package-lock.json for npm ci in workflows
+!backend/package-lock.json
+
 # Environment files
 .env
 .env.local
