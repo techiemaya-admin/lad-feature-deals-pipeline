@@ -156,7 +156,6 @@ jobs:
             "lad-backend/features/deals-pipeline/manifest.js"
             "lad-backend/features/deals-pipeline/index.js"
             "lad-backend/features/deals-pipeline/routes/index.js"
-            "lad-backend/features/deals-pipeline/constants.js"
           )
           
           for file in "${CRITICAL_FILES[@]}"; do
