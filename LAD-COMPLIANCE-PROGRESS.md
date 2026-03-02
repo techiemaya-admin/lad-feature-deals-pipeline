@@ -115,8 +115,8 @@ async function getData(tenant_id, schema = DEFAULT_SCHEMA) {
 **Pattern to apply:**
 ```javascript
 // Add to every controller
-const { getTenantContext } = require('../../../shared/utils/schemaHelper');
-const logger = require('../../../shared/utils/logger');
+const { getTenantContext } = require('../../../core/utils/schemaHelper');
+const logger = require('../../../core/utils/logger');
 
 exports.methodName = async (req, res) => {
   try {

@@ -5,9 +5,76 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# ⚠️ IMPORTANT: This workflow ONLY syncs campaign-specific files:
+#   ✅ Backend: /backend/features/deals-pipeline/
+#   ✅ Frontend: /frontend/sdk/features/deals-pipeline/ and /frontend/components/deals-pipeline/
+#   ❌ Blocked: /backend/core/, /backend/config/, /backend/shared/, /backend/feature_flags/
+#   ❌ Blocked: Any non-campaign backend directories
+
 jobs:
-  sync-backend:
+  validate-paths:
     runs-on: ubuntu-latest
+    name: Validate campaign-only sync
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 10
+      
+      - name: Check commit contains only campaign files
+        run: |
+          echo "🔐 SECURITY CHECK: Validating commit paths..."
+          echo ""
+          
+          # Get changed files from last commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          
+          echo "📋 Files in this commit:"
+          echo "$CHANGED_FILES" | sed 's/^/   /'
+          echo ""
+          
+          # Check for forbidden directories
+          FORBIDDEN_PATTERNS=(
+            '^backend/core/'
+            '^backend/config/'
+            '^backend/shared/'
+            '^backend/feature_flags/'
+            '^backend/migrations/'
+            '^backend/scripts/'
+          )
+          
+          HAS_FORBIDDEN=0
+          for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+            if echo "$CHANGED_FILES" | grep -E "$pattern" > /dev/null; then
+              echo "❌ BLOCKED: Found files in forbidden directory:"
+              echo "$CHANGED_FILES" | grep -E "$pattern" | sed 's/^/   ❌ /'
+              HAS_FORBIDDEN=1
+            fi
+          done
+          
+          if [ $HAS_FORBIDDEN -eq 1 ]; then
+            echo ""
+            echo "❌ VALIDATION FAILED"
+            echo "   Only these paths are allowed:"
+            echo "   ✅ backend/features/deals-pipeline/"
+            echo "   ✅ frontend/"
+            exit 1
+          fi
+          
+          # Check that at least some campaign files are committed
+          if echo "$CHANGED_FILES" | grep -E '(backend/features/deals-pipeline/|frontend/)' > /dev/null; then
+            echo "✅ VALIDATION PASSED"
+            echo "   All files are from allowed campaign paths"
+          else
+            echo "⚠️  WARNING: No campaign files detected in commit"
+            echo "   (This might be OK if only updating docs or configs)"
+          fi
+
+  sync-backend:
+    needs: [validate-paths]
+    runs-on: ubuntu-latest
+    # Only run on main branch
+    if: github.ref == 'refs/heads/main' && success()
     steps:
       - name: Checkout feature repo
         uses: actions/checkout@v3
@@ -24,38 +91,183 @@ jobs:
 
       - name: Copy backend files
         run: |
-          # Ensure parent directory exists
+          echo "📦 Starting backend file sync..."
+          
+          # CRITICAL: Verify source exists
+          if [ ! -d "backend/features/deals-pipeline" ]; then
+            echo "❌ Source directory not found: backend/features/deals-pipeline"
+            exit 1
+          fi
+          
+          # SAFETY CHECK: Verify no core, config, shared files are in the commit
+          echo "🔒 Verifying no non-campaign files are included..."
+          if git diff --name-only HEAD~1 HEAD | grep -E '^backend/(core|config|shared)/' > /dev/null; then
+            echo "❌ BLOCKED: Found non-campaign files in commit (core/config/shared)"
+            echo "   Only backend/features/deals-pipeline/ and frontend/ should be committed"
+            git diff --name-only HEAD~1 HEAD | grep -E '^backend/(core|config|shared)/' | sed 's/^/   ❌ /'
+            exit 1
+          fi
+          
+          # Ensure destination exists
           mkdir -p lad-backend/features/deals-pipeline
           
-          # Use rsync to sync files (preserves existing files and updates/adds new ones)
-          rsync -av --delete backend/features/deals-pipeline/ lad-backend/features/deals-pipeline/
+          # Sync ONLY campaign files with strict exclusions
+          if ! rsync -av \
+            --filter='+ /manifest.js' \
+            --filter='+ /index.js' \
+            --filter='+ /package.json' \
+            --filter='+ *.js' \
+            --filter='+ *.json' \
+            --filter='+ *.sql' \
+            --filter='+ *.ts' \
+            --filter='+ *.tsx' \
+            --filter='+ *.md' \
+            --filter='+ *.yml' \
+            --filter='+ *.yaml' \
+            --filter='- /.*' \
+            --exclude='.env*' \
+            --exclude='*.local.js' \
+            --exclude='*.test.js' \
+            --exclude='*.test.ts' \
+            --exclude='*.spec.js' \
+            --exclude='*.spec.ts' \
+            --exclude='node_modules' \
+            --exclude='.DS_Store' \
+            --exclude='.git*' \
+            --exclude='coverage' \
+            --exclude='dist' \
+            --exclude='build' \
+            backend/features/deals-pipeline/ lad-backend/features/deals-pipeline/; then
+            echo "❌ rsync failed!"
+            exit 1
+          fi
           
-          # Verify critical files exist
-          echo "✅ Verifying copied files..."
-          ls -la lad-backend/features/deals-pipeline/
-          [ -f "lad-backend/features/deals-pipeline/manifest.js" ] && echo "✅ manifest.js exists" || echo "❌ manifest.js missing"
-          [ -f "lad-backend/features/deals-pipeline/routes.js" ] && echo "✅ routes.js exists" || echo "❌ routes.js missing"
-          [ -f "lad-backend/features/deals-pipeline/routes/index.js" ] && echo "✅ routes/index.js exists" || echo "❌ routes/index.js missing"
+          echo "✅ Backend files synced successfully"
+          echo "📋 Synced files:"
+          find lad-backend/features/deals-pipeline -type f | wc -l | xargs echo "   Total files:"
+
+      - name: Verify critical files
+        run: |
+          echo "🔍 Verifying critical files..."
+          MISSING=0
+          
+          # Check for essential files
+          CRITICAL_FILES=(
+            "lad-backend/features/deals-pipeline/manifest.js"
+            "lad-backend/features/deals-pipeline/index.js"
+            "lad-backend/features/deals-pipeline/routes/index.js"
+            "lad-backend/features/deals-pipeline/constants.js"
+          )
+          
+          for file in "${CRITICAL_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ CRITICAL: $file is missing!"
+              MISSING=1
+            else
+              echo "✅ $file exists"
+            fi
+          done
+          
+          if [ $MISSING -eq 1 ]; then
+            echo "❌ Sync validation failed - critical files missing"
+            exit 1
+          fi
+          
+          echo "✅ All critical files verified"
 
       - name: Commit and push to LAD-Backend
         working-directory: lad-backend
         run: |
-          git config user.name "GitHub Actions"
+          git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
+          
+          # Clean up any unstaged changes outside features/deals-pipeline
+          echo "🧹 Cleaning working directory..."
+          git status
+          
+          # Stash any uncommitted changes first
+          if ! git diff --quiet || ! git diff --staged --quiet; then
+            echo "⚠️ Found uncommitted changes, stashing..."
+            git stash
+          fi
+          
+          # Pull latest changes to avoid conflicts
+          echo "📥 Pulling latest changes..."
+          git pull origin develop --rebase || {
+            echo "⚠️ Rebase conflict detected"
+            git rebase --abort
+            git stash pop || true
+            exit 1
+          }
+          
+          # Restore any stashed changes
+          if git stash list | grep -q .; then
+            echo "📥 Restoring stashed changes..."
+            git stash pop || true
+          fi
+          
+          # Stage ONLY campaign changes
           git add features/deals-pipeline/
-          git commit -m "feat(deals-pipeline): auto-sync from feature repo
-
-          Synced from: ${{ github.sha }}
-          Repository: lad-feature-deals-pipeline
-          Timestamp: $(date -u)
-          " || echo "No changes to commit"
-          git push origin develop
+          
+          # SAFETY: Verify only campaign files are staged
+          echo "🔍 Verifying staged files..."
+          if git diff --staged --name-only | grep -v '^features/deals-pipeline/' > /dev/null; then
+            echo "❌ BLOCKED: Found non-campaign files in staging area!"
+            git diff --staged --name-only | grep -v '^features/deals-pipeline/' | sed 's/^/   ❌ /'
+            git reset
+            exit 1
+          fi
+          
+          # Check if there are changes
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+            exit 0
+          fi
+          
+          # Show what changed
+          echo "📝 Changes to be committed:"
+          git diff --staged --stat
+          echo ""
+          echo "📋 Staging validation:"
+          echo "   ✅ All staged files are from features/deals-pipeline/"
+          
+          # Commit
+          git commit -m "feat(deals-pipeline): auto-sync from feature repo" \
+            -m "Synced from: ${{ github.repository }}@${{ github.sha }}" \
+            -m "Triggered by: ${{ github.actor }}" \
+            -m "Timestamp: $(date -u +%Y-%m-%d\ %H:%M:%S\ UTC)" \
+            -m "Workflow: ${{ github.workflow }}"
+          
+          # Push with retry logic
+          echo "📤 Pushing to LAD-Backend..."
+          for attempt in {1..3}; do
+            if git push origin develop; then
+              echo "✅ Push successful on attempt $attempt"
+              exit 0
+            fi
+            
+            echo "⚠️ Push failed, retrying ($attempt/3)..."
+            sleep 2
+            git pull origin develop --rebase || {
+              echo "❌ Rebase failed on retry"
+              git rebase --abort
+              exit 1
+            }
+          done
+          
+          echo "❌ Failed to push after 3 attempts"
+          exit 1
 
   sync-frontend:
+    needs: [validate-paths]
     runs-on: ubuntu-latest
+    # Only run on main branch
+    if: github.ref == 'refs/heads/main' && success()
     steps:
       - name: Checkout feature repo
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Checkout LAD-Frontend
         uses: actions/checkout@v3
@@ -67,31 +279,221 @@ jobs:
 
       - name: Copy frontend SDK files
         run: |
+          echo "📦 Starting frontend SDK sync..."
+          
+          # SAFETY CHECK: Verify no core, shared, config files are in the commit
+          echo "🔒 Verifying no non-campaign files are included..."
+          if git diff --name-only HEAD~1 HEAD | grep -E '^backend/(core|config|shared)/' > /dev/null; then
+            echo "❌ BLOCKED: Found non-campaign files in commit (core/config/shared)"
+            echo "   Only backend/features/deals-pipeline/ and frontend/ should be committed"
+            exit 1
+          fi
+          
+          # Check if SDK directory exists
+          if [ ! -d "frontend/sdk/features/deals-pipeline" ]; then
+            echo "⚠️ No frontend SDK directory found, skipping"
+            echo "HAS_SDK=false" >> $GITHUB_ENV
+            exit 0
+          fi
+          
+          echo "HAS_SDK=true" >> $GITHUB_ENV
+          
           # Ensure directory exists
           mkdir -p lad-frontend/sdk/features/deals-pipeline
 
-          # Use rsync to sync SDK files
-          [ -d "frontend/sdk" ] && rsync -av --delete frontend/sdk/ lad-frontend/sdk/features/deals-pipeline/ || echo "No frontend SDK"
-
-          # Copy components if exist
-          if [ -d "frontend/components" ] && [ "$(ls -A frontend/components)" ]; then
-            mkdir -p lad-frontend/web/src/features/deals-pipeline
-            rsync -av --delete frontend/components/ lad-frontend/web/src/features/deals-pipeline/
+          # Sync ONLY SDK campaign files with strict exclusions
+          if ! rsync -av \
+            --filter='+ *.ts' \
+            --filter='+ *.tsx' \
+            --filter='+ *.js' \
+            --filter='+ *.json' \
+            --filter='+ *.md' \
+            --filter='- *.test.ts' \
+            --filter='- *.test.tsx' \
+            --filter='- *.spec.ts' \
+            --filter='- *.spec.tsx' \
+            --exclude='node_modules' \
+            --exclude='.DS_Store' \
+            --exclude='.git*' \
+            --exclude='dist' \
+            --exclude='build' \
+            --exclude='coverage' \
+            frontend/sdk/features/deals-pipeline/ lad-frontend/sdk/features/deals-pipeline/; then
+            echo "❌ SDK sync failed!"
+            exit 1
           fi
+          
+          echo "✅ Frontend SDK files synced successfully"
+
+          # Copy components if they exist (optional, deals-pipeline-only)
+          if [ -d "frontend/components/deals-pipeline" ] && [ "$(ls -A frontend/components/deals-pipeline 2>/dev/null)" ]; then
+            echo "📦 Syncing campaign components..."
+            mkdir -p lad-frontend/web/src/features/deals-pipeline
+            rsync -av \
+              --filter='+ *.tsx' \
+              --filter='+ *.ts' \
+              --filter='+ *.css' \
+              --filter='+ *.scss' \
+              --filter='+ *.md' \
+              --filter='- *.test.*' \
+              --filter='- *.spec.*' \
+              --exclude='node_modules' \
+              --exclude='.DS_Store' \
+              frontend/components/deals-pipeline/ lad-frontend/web/src/features/deals-pipeline/
+            echo "HAS_COMPONENTS=true" >> $GITHUB_ENV
+          else
+            echo "ℹ️ No campaign components to sync"
+            echo "HAS_COMPONENTS=false" >> $GITHUB_ENV
+          fi
+          
+          echo "✅ Frontend files synced successfully"
+
+      - name: Verify frontend files
+        if: env.HAS_SDK == 'true'
+        run: |
+          echo "🔍 Verifying frontend SDK files..."
+          
+          # Check for essential SDK files
+          CRITICAL_FILES=(
+            "lad-frontend/sdk/features/deals-pipeline/index.ts"
+            "lad-frontend/sdk/features/deals-pipeline/api.ts"
+            "lad-frontend/sdk/features/deals-pipeline/types.ts"
+          )
+          
+          MISSING=0
+          for file in "${CRITICAL_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ CRITICAL: $file is missing!"
+              MISSING=1
+            else
+              echo "✅ $file exists"
+            fi
+          done
+          
+          if [ $MISSING -eq 1 ]; then
+            echo "❌ Frontend sync validation failed"
+            exit 1
+          fi
+          
+          echo "✅ Frontend SDK verified"
 
       - name: Commit and push to LAD-Frontend
+        if: env.HAS_SDK == 'true'
         working-directory: lad-frontend
         run: |
-          git config user.name "GitHub Actions"
+          git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
+          
+          # Clean up any unstaged changes
+          echo "🧹 Cleaning working directory..."
+          git status
+          
+          # Stash any uncommitted changes first
+          if ! git diff --quiet || ! git diff --staged --quiet; then
+            echo "⚠️ Found uncommitted changes, stashing..."
+            git stash
+          fi
+          
+          # Pull latest
+          echo "📥 Pulling latest changes..."
+          git pull origin develop --rebase || {
+            echo "⚠️ Rebase conflict detected"
+            git rebase --abort
+            git stash pop || true
+            exit 1
+          }
+          
+          # Restore any stashed changes
+          if git stash list | grep -q .; then
+            echo "📥 Restoring stashed changes..."
+            git stash pop || true
+          fi
+          
+          # Stage ONLY campaign SDK changes
           git add sdk/features/deals-pipeline/
-          if [ -d "web/src/features/deals-pipeline" ]; then
+          if [ "${{ env.HAS_COMPONENTS }}" = "true" ]; then
             git add web/src/features/deals-pipeline/
           fi
-          git commit -m "feat(deals-pipeline): auto-sync SDK from feature repo
+          
+          # SAFETY: Verify only campaign files are staged
+          echo "🔍 Verifying staged files..."
+          if git diff --staged --name-only | grep -v '^sdk/features/deals-pipeline/' | grep -v '^web/src/features/deals-pipeline/' > /dev/null; then
+            echo "❌ BLOCKED: Found non-campaign files in staging area!"
+            git diff --staged --name-only | grep -v '^sdk/features/deals-pipeline/' | grep -v '^web/src/features/deals-pipeline/' | sed 's/^/   ❌ /'
+            git reset
+            exit 1
+          fi
+          
+          # Check for changes
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+            exit 0
+          fi
+          
+          # Show changes
+          echo "📝 Changes to be committed:"
+          git diff --staged --stat
+          echo ""
+          echo "📋 Staging validation:"
+          echo "   ✅ All staged files are from SDK or campaign components"
+          
+          # Commit
+          git commit -m "feat(deals-pipeline): auto-sync SDK from feature repo" \
+            -m "Synced from: ${{ github.repository }}@${{ github.sha }}" \
+            -m "Triggered by: ${{ github.actor }}" \
+            -m "Timestamp: $(date -u +%Y-%m-%d\ %H:%M:%S\ UTC)" \
+            -m "Workflow: ${{ github.workflow }}"
+          
+          # Push with retry
+          echo "📤 Pushing to LAD-Frontend..."
+          for attempt in {1..3}; do
+            if git push origin develop; then
+              echo "✅ Push successful on attempt $attempt"
+              exit 0
+            fi
+            
+            echo "⚠️ Push failed, retrying ($attempt/3)..."
+            sleep 2
+            git pull origin develop --rebase || {
+              echo "❌ Rebase failed on retry"
+              git rebase --abort
+              exit 1
+            }
+          done
+          
+          echo "❌ Failed to push after 3 attempts"
+          exit 1
 
-          Synced from: ${{ github.sha }}
-          Repository: lad-feature-deals-pipeline
-          Timestamp: $(date -u)
-          " || echo "No changes to commit"
-          git push origin develop
+  notify-success:
+    needs: [validate-paths, sync-backend, sync-frontend]
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Success notification
+        run: |
+          echo "✅ Campaign sync completed successfully"
+          echo ""
+          echo "🔐 Security: Path validation passed"
+          echo "📤 Backend: Synced to LAD-Backend/feature/deals-pipeline"
+          echo "📤 Frontend: Synced to LAD-Frontend/sdk/features/deals-pipeline"
+
+  notify-failure:
+    needs: [validate-paths, sync-backend, sync-frontend]
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Failure notification
+        run: |
+          echo "❌ Campaign sync failed"
+          echo ""
+          if [ "${{ needs.validate-paths.result }}" = "failure" ]; then
+            echo "🔐 PATH VALIDATION FAILED"
+            echo "   Reason: Non-campaign files detected in commit"
+            echo "   Only these paths are allowed:"
+            echo "   • backend/features/deals-pipeline/"
+            echo "   • frontend/sdk/features/deals-pipeline/"
+            echo "   • frontend/components/deals-pipeline/"
+          else
+            echo "See workflow logs for sync errors"
+          fi
+          exit 1

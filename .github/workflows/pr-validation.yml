@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           
       - name: Install backend dependencies
         run: |
@@ -118,13 +118,14 @@ jobs:
         run: |
           echo "Checking for accidentally committed secrets..."
           
-          # Check for common secret patterns
-          if grep -r -i "api[_-]key.*=.*['\"][a-zA-Z0-9]{20,}['\"]" backend/ frontend/ 2>/dev/null; then
+          # Check for common secret patterns (exclude node_modules)
+          if grep -r -i "api[_-]key.*=.*['\"][a-zA-Z0-9]{20,}['\"]" backend/ frontend/ --exclude-dir=node_modules 2>/dev/null; then
             echo "❌ Possible API keys found in code"
             exit 1
           fi
           
-          if grep -r -i "password.*=.*['\"][^'\"]*['\"]" backend/ frontend/ 2>/dev/null | grep -v "password.*process.env"; then
+          # Check for hardcoded passwords (exclude node_modules and comments)
+          if grep -r -i "password.*=.*['\"][^'\"]*['\"]" backend/ frontend/ --exclude-dir=node_modules 2>/dev/null | grep -v "password.*process.env\|^[[:space:]]*\(\/\/\|\/\*\)"; then
             echo "❌ Possible hardcoded passwords found"
             exit 1
           fi
@@ -152,7 +153,7 @@ jobs:
       - name: Generate PR summary
         if: always()
         run: |
-          echo "## 📊 PR Validation Summary - Campaigns Feature" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 PR Validation Summary - Deals Pipeline Feature" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Files Changed" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
