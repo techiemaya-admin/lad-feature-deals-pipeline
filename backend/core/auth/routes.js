@@ -79,10 +79,8 @@ router.post('/login', async (req, res) => {
     
     const user = result.rows[0];
     
-    // For demo users with hardcoded password (password123)
-    // In production, always use bcrypt for all passwords
-    const isValidPassword = password === 'password123' || 
-      await bcrypt.compare(password, user.password_hash);
+    // Validate password using bcrypt only
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
     
     if (!isValidPassword) {
       return res.status(401).json({
