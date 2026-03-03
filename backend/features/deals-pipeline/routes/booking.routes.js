@@ -22,6 +22,9 @@ router.get('/student/:studentId', validateUUIDParam('studentId'), bookingControl
 // GET /api/deals-pipeline/bookings/range?dayStart=...&dayEnd=...
 router.get('/range', bookingController.listInRange);
 
+// DELETE /api/deals-pipeline/bookings/:id/followup
+router.delete('/:id/followup', validateUUIDParam('id'), bookingController.deleteFollowup);
+
 // GET /api/deals-pipeline/bookings/:id (must come after specific routes)
 router.get('/:id', validateUUIDParam('id'), bookingController.getById);
 

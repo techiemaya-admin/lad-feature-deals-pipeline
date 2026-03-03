@@ -91,3 +91,14 @@ exports.getAvailability = async (params) => {
   }
   return await BookingModel.calculateAvailability(params, schema);
 };
+
+exports.deleteFollowup = async (bookingId, tenant_id, schema) => {
+  if (!tenant_id) {
+    throw new Error('tenant_id is required for deleteFollowup');
+  }
+  
+  const BookingsRepository = require('../repositories/bookingsRepository');
+  const bookingsRepo = new BookingsRepository(pool);
+  
+  return await bookingsRepo.deleteFollowup(schema, bookingId, tenant_id);
+};

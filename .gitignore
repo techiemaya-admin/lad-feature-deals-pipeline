@@ -52,10 +52,13 @@ backend/features/deals-pipeline/middleware/validators.js
 
 # Development server and test files
 backend/server.js
-backend/shared/
+# backend/shared/
 
 # File uploads (attachments should not be committed)
 backend/uploads/
+
+# GCP / service account secrets
+backend/features/deals-pipeline/secrets/
 
 # Frontend test pages
 frontend/index.html
