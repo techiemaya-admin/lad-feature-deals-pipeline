@@ -2,6 +2,7 @@ const BookingModel = require('../repositories/booking.pg');
 const FollowUpSchedulerService = require('./followUpSchedulerService');
 const { pool } = require('../../../shared/database/connection');
 const logger = require('../../../core/utils/logger');
+const BookingsRepository = require('../repositories/bookingsRepository');
 
 exports.create = async (data) => {
   const { tenant_id, schema, booking_type, scheduled_at, lead_id, assigned_user_id } = data;
@@ -97,7 +98,7 @@ exports.deleteFollowup = async (bookingId, tenant_id, schema) => {
     throw new Error('tenant_id is required for deleteFollowup');
   }
   
-  const BookingsRepository = require('../repositories/bookingsRepository');
+
   const bookingsRepo = new BookingsRepository(pool);
   
   return await bookingsRepo.deleteFollowup(schema, bookingId, tenant_id);
