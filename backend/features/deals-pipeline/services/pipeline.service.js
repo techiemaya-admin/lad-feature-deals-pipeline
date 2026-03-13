@@ -40,6 +40,17 @@ exports.getBoard = async (tenant_id, schema, pagination = {}) => {
   };
 };
 
+exports.getLeadsByStage = async (tenant_id, schema, filters = {}, pagination = {}) => {
+  if (!tenant_id) {
+    throw new Error('tenant_id is required for getLeadsByStage');
+  }
+
+  const page = Number.isFinite(pagination.page) ? pagination.page : parseInt(pagination.page) || 1;
+  const limit = Number.isFinite(pagination.limit) ? pagination.limit : parseInt(pagination.limit) || 10;
+
+  return await Lead.getLeadsByStage(tenant_id, schema, filters, { page, limit });
+};
+
 /**
  * Move a lead to a different stage
  */

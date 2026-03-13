@@ -37,6 +37,39 @@ exports.getBoard = async (req, res) => {
 };
 
 /**
+ * Get leads filtered by stage/status with pagination
+ * GET /api/deals-pipeline/pipeline/leads
+ */
+exports.getLeadsByStage = async (req, res) => {
+  try {
+    const { tenant_id, schema } = getTenantContext(req);
+
+    const stage = req.query.stage || null;
+    const status = req.query.status || null;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await pipelineService.getLeadsByStage(
+      tenant_id,
+      schema,
+      { stage, status },
+      { page, limit }
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error getting leads by stage/status', error, { path: req.path });
+
+    if (error.code === 'TENANT_CONTEXT_MISSING') {
+      return res.status(403).json({ error: error.message });
+    }
+
+    res.status(500).json({ error: 'Failed to fetch leads', details: error.message });
+  }
+};
+
+/**
  * Move a lead to a different stage
  * PUT /api/deals-pipeline/pipeline/leads/:id/stage
  */
