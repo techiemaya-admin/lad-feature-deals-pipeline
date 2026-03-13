@@ -11,6 +11,14 @@ const logger = require('../../../core/utils/logger');
 const mapFieldsToDB = leadDTO.toDatabase;
 const mapFieldsFromDB = leadDTO.fromDatabase;
 
+function normalizeStage(stage) {
+  if (!stage || typeof stage !== 'string') return stage;
+  if (stage.match(/^\d+_contacted$/)) return 'contacted';
+  if (stage.match(/^\d+_followup$/)) return 'follow_up';
+  if (stage === 'followup') return 'follow_up';
+  return stage.replace(/^[\d_]+/, '');
+}
+
 // Get all leads
 async function getAllLeads(tenant_id, schema = DEFAULT_SCHEMA, filters = {}, pagination = {}) {
   if (!tenant_id) {
@@ -26,15 +34,17 @@ async function getAllLeads(tenant_id, schema = DEFAULT_SCHEMA, filters = {}, pag
 
   // Add filters
   if (filters.stage) {
-    whereClause += ` AND l.stage = $${paramIndex}`;
+    whereClause += ` AND l.stage ~ ('^\\d*' || $${paramIndex} || '$')`;
     params.push(filters.stage);
     paramIndex++;
   }
+
   if (filters.status) {
     whereClause += ` AND l.status = $${paramIndex}`;
     params.push(filters.status);
     paramIndex++;
   }
+
   if (filters.search) {
     whereClause += ` AND (l.first_name ILIKE $${paramIndex} OR l.last_name ILIKE $${paramIndex} OR l.email ILIKE $${paramIndex} OR l.company_name ILIKE $${paramIndex})`;
     params.push(`%${filters.search}%`);
@@ -51,7 +61,7 @@ async function getAllLeads(tenant_id, schema = DEFAULT_SCHEMA, filters = {}, pag
     SELECT l.*
     FROM ${schema}.leads l
     ${whereClause}
-    ORDER BY l.created_at DESC
+    ORDER BY l.updated_at DESC
   `;
 
   if (limit > 0) {
@@ -63,6 +73,7 @@ async function getAllLeads(tenant_id, schema = DEFAULT_SCHEMA, filters = {}, pag
   const result = await query(dataSql, params);
   const leads = result.rows.map(lead => ({
     ...mapFieldsFromDB(lead),
+    stage: normalizeStage(lead.stage),
     tags: lead.tags || [] 
   }));
 
@@ -79,6 +90,62 @@ async function getAllLeads(tenant_id, schema = DEFAULT_SCHEMA, filters = {}, pag
   }
 
   return leads;
+}
+
+async function getLeadsByStage(tenant_id, schema = DEFAULT_SCHEMA, filters = {}, pagination = {}) {
+  if (!tenant_id) {
+    throw new Error('tenant_id is required for getLeadsByStage');
+  }
+
+  const { page = 1, limit = 10 } = pagination;
+
+  let whereClause = `WHERE l.tenant_id = $1 AND l.is_deleted = FALSE`;
+  let params = [tenant_id];
+  let paramIndex = 2;
+
+  if (filters.stage) {
+    whereClause += ` AND l.stage ~ ('^\\d*' || $${paramIndex} || '$')`;
+    params.push(filters.stage);
+    paramIndex++;
+  }
+
+  if (filters.status) {
+    whereClause += ` AND l.status = $${paramIndex}`;
+    params.push(filters.status);
+    paramIndex++;
+  }
+
+  const countSql = `SELECT COUNT(*) FROM ${schema}.leads l ${whereClause}`;
+  const countResult = await query(countSql, params);
+  const total = parseInt(countResult.rows[0].count);
+
+  const offset = (page - 1) * limit;
+  let dataSql = `
+    SELECT l.*
+    FROM ${schema}.leads l
+    ${whereClause}
+    ORDER BY l.updated_at DESC
+    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+  `;
+
+  params.push(limit, offset);
+  const result = await query(dataSql, params);
+
+  const leads = result.rows.map(lead => ({
+    ...mapFieldsFromDB(lead),
+    stage: normalizeStage(lead.stage),
+    tags: lead.tags || []
+  }));
+
+  return {
+    leads,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 }
 
 // Get lead by ID
@@ -138,6 +205,7 @@ async function getLeadById(id, tenant_id, schema = DEFAULT_SCHEMA) {
 
   // Map lead fields and add bookings
   const mappedLead = mapFieldsFromDB(lead);
+  mappedLead.stage = normalizeStage(lead.stage);
   mappedLead.bookings = {
     current: currentBookings,
     past: pastBookings
@@ -263,51 +331,48 @@ async function getPipelineStats(tenant_id, schema = DEFAULT_SCHEMA) {
 
   // Query 2: Connections sent (LinkedIn connect/message sent status)
   const connectionsSentSql = `
-    SELECT COUNT(DISTINCT cla.campaign_lead_id) as total
-    FROM ${schema}.campaign_lead_activities cla
-    WHERE cla.tenant_id = $1 
-      AND (cla.step_type = 'linkedin_connect' OR cla.step_type = 'linkedin_message')
-      AND cla.status IN ('sent', 'delivered', 'connected')
+    SELECT COUNT(*) as total
+    FROM ${schema}.leads
+    WHERE tenant_id = $1 AND is_deleted = FALSE AND stage = $2
   `;
 
   // Query 3: Messages sent (all channels)
   const messagesSentSql = `
-    SELECT COUNT(DISTINCT cla.campaign_lead_id) as total
-    FROM ${schema}.campaign_lead_activities cla
-    WHERE cla.tenant_id = $1 
-      AND cla.action_type = 'message'
-      AND cla.status = 'sent'
+    SELECT COUNT(*) as total
+    FROM ${schema}.leads
+    WHERE tenant_id = $1 AND is_deleted = FALSE AND stage = $2
   `;
 
   // Query 4: Successful interactions (replied or connected)
-  const successSql = `
-    SELECT COUNT(DISTINCT cla.campaign_lead_id) as total
-    FROM ${schema}.campaign_lead_activities cla
-    WHERE cla.tenant_id = $1 
-      AND cla.status IN ('replied', 'connected', 'delivered')
+  const contactedSql = `
+    SELECT COUNT(*) as total
+    FROM ${schema}.leads
+    WHERE tenant_id = $1 AND is_deleted = FALSE AND stage = 'contacted'
   `;
 
   // Execute all queries in parallel
-  const [totalLeads, connectionsSent, messagesSent, success] = await Promise.all([
+  const [totalLeads, connectionsSent, messagesSent, contacted] = await Promise.all([
     query(totalLeadsSql, [tenant_id]),
-    query(connectionsSentSql, [tenant_id]),
-    query(messagesSentSql, [tenant_id]),
-    query(successSql, [tenant_id])
+    query(connectionsSentSql, [tenant_id, 'connection_sent']),
+    query(messagesSentSql, [tenant_id, 'message_sent']),
+    query(contactedSql, [tenant_id])
   ]);
 
   return {
     totalLeads: parseInt(totalLeads.rows[0]?.total || 0),
     connectionsSent: parseInt(connectionsSent.rows[0]?.total || 0),
     messagesSent: parseInt(messagesSent.rows[0]?.total || 0),
-    successfulInteractions: parseInt(success.rows[0]?.total || 0),
+    contacted: parseInt(contacted.rows[0]?.total || 0),
+    successfulInteractions: parseInt(contacted.rows[0]?.total || 0),
     successRate: totalLeads.rows[0]?.total > 0 
-      ? ((parseInt(success.rows[0]?.total || 0) / parseInt(totalLeads.rows[0].total)) * 100).toFixed(2)
+      ? ((parseInt(contacted.rows[0]?.total || 0) / parseInt(totalLeads.rows[0].total)) * 100).toFixed(2)
       : 0
   };
 }
 
 module.exports = {
   getAllLeads,
+  getLeadsByStage,
   getLeadById,
   createLead,
   updateLead,
